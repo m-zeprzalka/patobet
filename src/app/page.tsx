@@ -52,7 +52,7 @@ export default function HomePage() {
 
             <dl className="border-border/60 mt-2 grid w-full grid-cols-2 gap-x-6 gap-y-6 border-t pt-8 sm:max-w-2xl sm:grid-cols-3">
               <Stat label="Typ" value="1 / X / 2" />
-              <Stat label="Trafienie" value="3 pkt" hint="po 90 min lub awansie" />
+              <Stat label="Trafienie" value="1 pkt" hint="po 90 min lub awansie" />
               <Stat label="Deadline" value="kickoff" hint="potem zablokowane" />
             </dl>
           </div>

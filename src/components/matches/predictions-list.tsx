@@ -79,7 +79,7 @@ export function PredictionsList({
                       : "text-muted-foreground",
                   )}
                 >
-                  {p.points_awarded > 0 ? "+3" : "0"}
+                  {p.points_awarded > 0 ? `+${p.points_awarded}` : "0"}
                 </span>
               ) : null}
               <PredictionChip

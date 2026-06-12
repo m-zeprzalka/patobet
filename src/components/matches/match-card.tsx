@@ -111,7 +111,9 @@ export function MatchCard({ match }: MatchCardProps) {
                       : "text-muted-foreground",
                   )}
                 >
-                  {match.myPrediction.points_awarded > 0 ? "+3" : "0"}
+                  {match.myPrediction.points_awarded > 0
+                    ? `+${match.myPrediction.points_awarded}`
+                    : "0"}
                 </span>
               ) : null}
             </span>

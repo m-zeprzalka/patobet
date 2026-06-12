@@ -34,7 +34,16 @@ async function fetchJson<T>(path: string): Promise<T> {
 }
 
 export async function fetchTeams(): Promise<OfTeam[]> {
-  return fetchJson<OfTeam[]>("worldcup.teams_meta.json");
+  // Czerwiec 2026: repo zmieniło nazwę pliku teams_meta → teams.
+  // Próbujemy nowej nazwy, fallback na starą gdyby wrócili do poprzedniej.
+  try {
+    return await fetchJson<OfTeam[]>("worldcup.teams.json");
+  } catch (err) {
+    if (err instanceof OpenFootballError && err.status === 404) {
+      return fetchJson<OfTeam[]>("worldcup.teams_meta.json");
+    }
+    throw err;
+  }
 }
 
 export async function fetchFixtures(): Promise<OfWorldCup> {

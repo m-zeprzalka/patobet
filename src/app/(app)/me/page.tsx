@@ -210,7 +210,9 @@ export default async function MePage() {
                                 : "text-muted-foreground",
                             )}
                           >
-                            {p.points_awarded > 0 ? "+3" : "0"}
+                            {p.points_awarded > 0
+                              ? `+${p.points_awarded}`
+                              : "0"}
                           </span>
                         ) : null}
                         <PredictionChip value={p.prediction} state={state} />

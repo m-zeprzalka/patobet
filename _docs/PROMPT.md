@@ -23,8 +23,8 @@ Masz w pamięci skille `web-craft` (`SKILL.md`, `STACK.md`, `DESIGN.md`) — **t
 | **Auth** | Magic link na email (Supabase Auth) — bez haseł, bez OAuth w MVP |
 | **Dostęp** | Publiczna rejestracja — każdy z mailem może wejść |
 | **Co typujemy** | Tylko 1/X/2 (zwycięstwo gospodarza / remis / zwycięstwo gościa) |
-| **Punktacja faza grupowa** | 3 pkt za trafienie 1/X/2 po 90 min, 0 pkt za pudło |
-| **Punktacja faza pucharowa** | 3 pkt za trafienie awansującej drużyny (kto przechodzi dalej, niezależnie od dogrywki/karnych) |
+| **Punktacja faza grupowa** | 1 pkt za trafienie 1/X/2 po 90 min, 0 pkt za pudło |
+| **Punktacja faza pucharowa** | 1 pkt za trafienie awansującej drużyny (kto przechodzi dalej, niezależnie od dogrywki/karnych) |
 | **Deadline typowania** | Gwizdek startowy meczu (kickoff). Po kickoff typ zablokowany, nawet jeśli nie został złożony |
 | **Widoczność cudzych typów** | Od razu po obstawieniu (znajomi widzą się nawzajem — to część zabawy) |
 | **Edycja typu** | Możliwa do gwizdka. Po kickoff — zablokowane na zawsze |
@@ -109,7 +109,7 @@ predictions
   - user_id (FK → profiles)
   - match_id (FK → matches)
   - prediction (enum: home, draw, away)   -- 1/X/2
-  - points_awarded (int, nullable)        -- null = nie rozliczono, 0/3 = rozliczono
+  - points_awarded (int, nullable)        -- null = nie rozliczono, 0/1 = rozliczono
   - submitted_at (timestamptz)
   - UNIQUE (user_id, match_id)             -- jeden typ na mecz na usera
 ```
@@ -162,7 +162,7 @@ Server Action `settleMatch(matchId)`, wywoływana z crona po zmianie statusu mec
    - Faza pucharowa: winner_team_id === home_team_id → "home"; === away_team_id → "away"
      (remis nie istnieje w pucharowej, "draw" zawsze pudło)
 3. Pobierz wszystkie predictions dla match_id gdzie points_awarded IS NULL
-4. Dla każdej: points_awarded = (prediction === correct) ? 3 : 0
+4. Dla każdej: points_awarded = (prediction === correct) ? 1 : 0
 5. UPDATE w transakcji
 6. UPDATE matches.settled_at = now()
 7. Refresh materialized view leaderboard

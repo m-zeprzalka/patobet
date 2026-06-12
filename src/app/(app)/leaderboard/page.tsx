@@ -40,7 +40,7 @@ export default async function LeaderboardPage() {
           Tabela
         </h1>
         <p className="text-muted-foreground text-sm">
-          3 pkt za każde trafienie. Brak typu = 0 pkt, ale Cię nie wyklucza.
+          1 pkt za każde trafienie. Brak typu = 0 pkt, ale Cię nie wyklucza.
         </p>
       </header>
 
