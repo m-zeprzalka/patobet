@@ -30,7 +30,9 @@ export async function setMatchResult(
     matchId: formData.get("matchId"),
     homeScore: formData.get("homeScore"),
     awayScore: formData.get("awayScore"),
-    winnerSide: formData.get("winnerSide"),
+    // formData.get() zwraca null gdy pola nie ma (mecze grupowe) — Zod .optional()
+    // przyjmuje undefined, ale nie null.
+    winnerSide: formData.get("winnerSide") ?? undefined,
   });
 
   if (!parsed.success) {
