@@ -47,7 +47,7 @@ const SELECT_QUERY = `
   home_score, away_score, winner_team_id, settled_at,
   home_team:home_team_id (id, api_id, name, code, flag_url, group_letter, created_at),
   away_team:away_team_id (id, api_id, name, code, flag_url, group_letter, created_at),
-  predictions (id, user_id, match_id, prediction, home_score_pred, away_score_pred, points_awarded, submitted_at)
+  predictions (id, user_id, match_id, prediction, advance_pick, points_awarded, submitted_at)
 `;
 
 interface RawMatchRow extends Omit<MatchRow, "home_team_id" | "away_team_id"> {
@@ -125,8 +125,7 @@ export interface UserPrediction {
   display_name: string;
   avatar_url: string | null;
   prediction: PredictionChoice;
-  home_score_pred: number | null;
-  away_score_pred: number | null;
+  advance_pick: PredictionChoice | null;
   points_awarded: number | null;
   submitted_at: string;
 }
@@ -138,7 +137,7 @@ export async function getMatchPredictionsWithProfiles(
   const { data, error } = await supabase
     .from("predictions")
     .select(
-      `prediction, home_score_pred, away_score_pred, points_awarded, submitted_at, user_id,
+      `prediction, advance_pick, points_awarded, submitted_at, user_id,
        profile:user_id ( display_name, avatar_url )`,
     )
     .eq("match_id", matchId)
@@ -148,8 +147,7 @@ export async function getMatchPredictionsWithProfiles(
 
   type RawRow = {
     prediction: PredictionChoice;
-    home_score_pred: number | null;
-    away_score_pred: number | null;
+    advance_pick: PredictionChoice | null;
     points_awarded: number | null;
     submitted_at: string;
     user_id: string;
@@ -163,8 +161,7 @@ export async function getMatchPredictionsWithProfiles(
       display_name: r.profile!.display_name!,
       avatar_url: r.profile!.avatar_url,
       prediction: r.prediction,
-      home_score_pred: r.home_score_pred,
-      away_score_pred: r.away_score_pred,
+      advance_pick: r.advance_pick,
       points_awarded: r.points_awarded,
       submitted_at: r.submitted_at,
     }));
@@ -175,53 +172,53 @@ export function isLocked(match: Pick<MatchWithDetails, "kickoff_at" | "status">)
   return new Date(match.kickoff_at).getTime() <= Date.now();
 }
 
+/** Poprawny typ 1/X/2 po 90 min — z wyniku (grupowa i pucharowa). */
 export function correctChoice(
-  match: Pick<MatchWithDetails, "stage" | "home_score" | "away_score" | "winner_team_id" | "home_team" | "away_team">,
+  match: Pick<MatchWithDetails, "home_score" | "away_score">,
 ): PredictionChoice | null {
-  if (match.stage === "group") {
-    if (match.home_score == null || match.away_score == null) return null;
-    if (match.home_score > match.away_score) return "home";
-    if (match.home_score < match.away_score) return "away";
-    return "draw";
-  }
+  if (match.home_score == null || match.away_score == null) return null;
+  if (match.home_score > match.away_score) return "home";
+  if (match.home_score < match.away_score) return "away";
+  return "draw";
+}
+
+/** Kto awansował (home/away) — z winner_team_id. Tylko faza pucharowa. */
+export function correctAdvancer(
+  match: Pick<MatchWithDetails, "winner_team_id" | "home_team" | "away_team">,
+): PredictionChoice | null {
   if (!match.winner_team_id) return null;
   if (match.winner_team_id === match.home_team.id) return "home";
   if (match.winner_team_id === match.away_team.id) return "away";
   return null;
 }
 
-/** Faza pucharowa = wszystko poza grupową (2 pkt: awans + dokładny wynik). */
+/** Faza pucharowa = wszystko poza grupową (2 pkt: 1/X/2 po 90 min + awans). */
 export function isKnockout(stage: MatchStage): boolean {
   return stage !== "group";
 }
 
 export interface KnockoutBreakdown {
+  resultCorrect: boolean; // trafiony 1/X/2 po 90 min → +1
   advanced: boolean; // trafiony awansujący → +1
-  exactScore: boolean; // trafiony dokładny wynik po 90 min → +1
 }
 
 /**
  * Rozbicie punktów meczu pucharowego dla danego typu — do wyświetlenia
- * "Awans ✓ · Wynik ✗". Zwraca null dla grupowych lub nierozliczonych meczów.
+ * "Wynik ✓ · Awans ✗". Zwraca null dla grupowych lub nierozliczonych meczów.
  */
 export function knockoutBreakdown(
   match: Pick<
     MatchWithDetails,
     "stage" | "home_score" | "away_score" | "winner_team_id" | "home_team" | "away_team"
   >,
-  prediction: Pick<PredictionRow, "prediction" | "home_score_pred" | "away_score_pred">,
+  prediction: Pick<PredictionRow, "prediction" | "advance_pick">,
 ): KnockoutBreakdown | null {
   if (match.stage === "group") return null;
-  const correct = correctChoice(match);
-  if (correct == null || match.home_score == null || match.away_score == null) {
-    return null;
-  }
+  const result = correctChoice(match);
+  const advancer = correctAdvancer(match);
+  if (result == null || advancer == null) return null;
   return {
-    advanced: prediction.prediction === correct,
-    exactScore:
-      prediction.home_score_pred != null &&
-      prediction.away_score_pred != null &&
-      prediction.home_score_pred === match.home_score &&
-      prediction.away_score_pred === match.away_score,
+    resultCorrect: prediction.prediction === result,
+    advanced: prediction.advance_pick === advancer,
   };
 }

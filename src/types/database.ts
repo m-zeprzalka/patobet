@@ -116,8 +116,7 @@ export type Database = {
           user_id: string;
           match_id: string;
           prediction: PredictionChoice;
-          home_score_pred: number | null;
-          away_score_pred: number | null;
+          advance_pick: PredictionChoice | null;
           points_awarded: number | null;
           submitted_at: string;
         };
@@ -126,15 +125,13 @@ export type Database = {
           user_id: string;
           match_id: string;
           prediction: PredictionChoice;
-          home_score_pred?: number | null;
-          away_score_pred?: number | null;
+          advance_pick?: PredictionChoice | null;
           points_awarded?: number | null;
           submitted_at?: string;
         };
         Update: {
           prediction?: PredictionChoice;
-          home_score_pred?: number | null;
-          away_score_pred?: number | null;
+          advance_pick?: PredictionChoice | null;
           points_awarded?: number | null;
         };
         Relationships: [];

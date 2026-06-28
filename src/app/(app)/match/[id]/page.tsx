@@ -13,6 +13,7 @@ import {
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
+  correctAdvancer,
   correctChoice,
   getMatchById,
   getMatchPredictionsWithProfiles,
@@ -46,6 +47,7 @@ export default async function MatchPage({
   const isFinished = match.status === "finished";
   const correct = isFinished ? correctChoice(match) : null;
   const knockout = isKnockout(match.stage);
+  const correctAdv = isFinished && knockout ? correctAdvancer(match) : null;
   const myBreakdown =
     isFinished && knockout && match.myPrediction
       ? knockoutBreakdown(match, match.myPrediction)
@@ -115,7 +117,7 @@ export default async function MatchPage({
               {locked
                 ? "Twój typ"
                 : knockout
-                  ? "Kto awansuje + dokładny wynik"
+                  ? "Wynik 1 / X / 2 + kto awansuje"
                   : "Obstaw 1 / X / 2"}
             </h2>
             {knockout ? (
@@ -131,9 +133,8 @@ export default async function MatchPage({
                   name: match.away_team.name,
                   flagUrl: match.away_team.flag_url,
                 }}
-                initialAdvance={match.myPrediction?.prediction ?? null}
-                initialHomeScore={match.myPrediction?.home_score_pred ?? null}
-                initialAwayScore={match.myPrediction?.away_score_pred ?? null}
+                initialPrediction={match.myPrediction?.prediction ?? null}
+                initialAdvance={match.myPrediction?.advance_pick ?? null}
                 locked={locked}
               />
             ) : (
@@ -149,22 +150,19 @@ export default async function MatchPage({
             {myBreakdown ? (
               <div className="border-border/60 mt-4 flex items-center justify-center gap-4 border-t pt-4 text-sm">
                 <BreakdownItem
-                  label="Awans"
-                  ok={myBreakdown.advanced}
+                  label="Wynik (90′)"
+                  ok={myBreakdown.resultCorrect}
                 />
                 <span aria-hidden className="text-muted-foreground/40">
                   ·
                 </span>
-                <BreakdownItem
-                  label="Dokładny wynik"
-                  ok={myBreakdown.exactScore}
-                />
+                <BreakdownItem label="Awans" ok={myBreakdown.advanced} />
                 <span aria-hidden className="text-muted-foreground/40">
                   ·
                 </span>
                 <span className="font-display font-semibold tabular-nums">
-                  {(myBreakdown.advanced ? 1 : 0) +
-                    (myBreakdown.exactScore ? 1 : 0)}
+                  {(myBreakdown.resultCorrect ? 1 : 0) +
+                    (myBreakdown.advanced ? 1 : 0)}
                   /2 pkt
                 </span>
               </div>
@@ -192,12 +190,11 @@ export default async function MatchPage({
             <PredictionsList
               predictions={predictions}
               correct={correct}
+              correctAdvancer={correctAdv}
               currentUserId={user.id}
               knockout={knockout}
               homeCode={match.home_team.code}
               awayCode={match.away_team.code}
-              actualHomeScore={isFinished ? match.home_score : null}
-              actualAwayScore={isFinished ? match.away_score : null}
             />
           </CardContent>
         </Card>

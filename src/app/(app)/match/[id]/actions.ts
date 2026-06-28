@@ -7,29 +7,24 @@ import { getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { PredictionChoice } from "@/types/database";
 
-const SCORE = z.number().int().min(0).max(99);
-
 const SCHEMA = z.object({
   matchId: z.string().uuid(),
   prediction: z.enum(["home", "draw", "away"]),
-  homeScorePred: SCORE.nullable().optional(),
-  awayScorePred: SCORE.nullable().optional(),
+  advancePick: z.enum(["home", "away"]).nullable().optional(),
 });
 
 export interface PredictionInput {
   matchId: string;
-  prediction: PredictionChoice;
-  // Tylko faza pucharowa: typowany dokładny wynik po 90 min. Oba albo żadne.
-  homeScorePred?: number | null;
-  awayScorePred?: number | null;
+  prediction: PredictionChoice; // 1/X/2 po 90 min
+  // Tylko faza pucharowa: kto awansuje (home/away).
+  advancePick?: PredictionChoice | null;
 }
 
 export type PredictionResult =
   | {
       ok: true;
       prediction: PredictionChoice;
-      homeScorePred: number | null;
-      awayScorePred: number | null;
+      advancePick: PredictionChoice | null;
     }
   | { ok: false; error: string };
 
@@ -72,34 +67,16 @@ export async function submitPrediction(
     return { ok: false, error: "Tego meczu już nie można typować" };
   }
 
-  let homeScorePred: number | null = null;
-  let awayScorePred: number | null = null;
-
-  if (match.stage !== "group") {
-    // Faza pucharowa: `prediction` = kto awansuje (home/away), remis nie istnieje.
-    if (prediction === "draw") {
-      return { ok: false, error: "W fazie pucharowej wskaż, kto awansuje" };
-    }
-    const h = parsed.data.homeScorePred ?? null;
-    const a = parsed.data.awayScorePred ?? null;
-    if ((h == null) !== (a == null)) {
-      return {
-        ok: false,
-        error: "Podaj cały wynik (oba pola) albo zostaw oba puste",
-      };
-    }
-    homeScorePred = h;
-    awayScorePred = a;
-  }
-  // Faza grupowa: tylko 1/X/2, typ wyniku zostaje NULL.
+  // Faza pucharowa: zapisujemy też kto awansuje (home/away). Grupowa: zawsze null.
+  const advancePick =
+    match.stage !== "group" ? (parsed.data.advancePick ?? null) : null;
 
   const { error } = await supabase.from("predictions").upsert(
     {
       user_id: user.id,
       match_id: matchId,
       prediction,
-      home_score_pred: homeScorePred,
-      away_score_pred: awayScorePred,
+      advance_pick: advancePick,
     },
     { onConflict: "user_id,match_id" },
   );
@@ -120,5 +97,5 @@ export async function submitPrediction(
 
   revalidatePath(`/match/${matchId}`);
   revalidatePath("/matches");
-  return { ok: true, prediction, homeScorePred, awayScorePred };
+  return { ok: true, prediction, advancePick };
 }

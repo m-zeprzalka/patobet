@@ -9,33 +9,35 @@ type ChipState = "default" | "correct" | "wrong";
 
 interface PredictionsListProps {
   predictions: UserPrediction[];
-  correct: PredictionChoice | null;
+  correct: PredictionChoice | null; // poprawny 1/X/2
+  correctAdvancer?: PredictionChoice | null; // poprawny awans (pucharowa)
   currentUserId: string;
   knockout?: boolean;
   homeCode?: string;
   awayCode?: string;
-  actualHomeScore?: number | null;
-  actualAwayScore?: number | null;
 }
 
 function MiniChip({
   children,
   state = "default",
-  className,
+  muted = false,
 }: {
   children: React.ReactNode;
   state?: ChipState;
-  className?: string;
+  muted?: boolean;
 }) {
   return (
     <span
       className={cn(
         "font-display inline-flex h-7 items-center justify-center rounded-md border px-2 text-sm font-bold tabular-nums",
-        state === "default" && "border-border bg-card text-foreground",
-        state === "correct" && "border-energy/40 bg-energy text-energy-foreground",
-        state === "wrong" &&
+        muted && "border-border/60 text-muted-foreground",
+        !muted && state === "default" && "border-border bg-card text-foreground",
+        !muted &&
+          state === "correct" &&
+          "border-energy/40 bg-energy text-energy-foreground",
+        !muted &&
+          state === "wrong" &&
           "border-destructive/40 bg-destructive/15 text-destructive",
-        className,
       )}
     >
       {children}
@@ -43,15 +45,25 @@ function MiniChip({
   );
 }
 
+function pickState(
+  settled: boolean,
+  correct: PredictionChoice | null,
+  pick: PredictionChoice | null,
+): ChipState {
+  if (!settled) {
+    return correct != null && pick === correct ? "correct" : "default";
+  }
+  return correct != null && pick === correct ? "correct" : "wrong";
+}
+
 export function PredictionsList({
   predictions,
   correct,
+  correctAdvancer = null,
   currentUserId,
   knockout = false,
   homeCode,
   awayCode,
-  actualHomeScore = null,
-  actualAwayScore = null,
 }: PredictionsListProps) {
   if (predictions.length === 0) {
     return (
@@ -61,33 +73,13 @@ export function PredictionsList({
     );
   }
 
-  const scoreKnown = actualHomeScore != null && actualAwayScore != null;
-
   return (
     <ul className="flex flex-col">
       {predictions.map((p, i) => {
         const isMe = p.user_id === currentUserId;
         const settled = p.points_awarded != null;
-
-        // Stan dla wyświetlenia awansu/typu.
-        const advanceState: ChipState = !settled
-          ? correct === p.prediction && correct !== null
-            ? "correct"
-            : "default"
-          : correct != null && p.prediction === correct
-            ? "correct"
-            : "wrong";
-
-        const hasScorePred =
-          p.home_score_pred != null && p.away_score_pred != null;
-        const scoreState: ChipState =
-          !settled || !scoreKnown
-            ? "default"
-            : hasScorePred &&
-                p.home_score_pred === actualHomeScore &&
-                p.away_score_pred === actualAwayScore
-              ? "correct"
-              : "wrong";
+        const resultState = pickState(settled, correct, p.prediction);
+        const advanceState = pickState(settled, correctAdvancer, p.advance_pick);
 
         return (
           <li
@@ -140,20 +132,20 @@ export function PredictionsList({
 
               {knockout ? (
                 <div className="flex items-center gap-1.5">
-                  {hasScorePred ? (
-                    <MiniChip state={scoreState}>
-                      {p.home_score_pred}:{p.away_score_pred}
+                  <PredictionChip value={p.prediction} state={resultState} />
+                  {p.advance_pick ? (
+                    <MiniChip state={advanceState}>
+                      {p.advance_pick === "home" ? homeCode : awayCode}
+                      <span aria-hidden className="ml-0.5 opacity-70">
+                        ↑
+                      </span>
                     </MiniChip>
-                  ) : null}
-                  <MiniChip state={advanceState}>
-                    {p.prediction === "home" ? homeCode : awayCode}
-                    <span aria-hidden className="ml-0.5 opacity-70">
-                      ↑
-                    </span>
-                  </MiniChip>
+                  ) : (
+                    <MiniChip muted>—↑</MiniChip>
+                  )}
                 </div>
               ) : (
-                <PredictionChip value={p.prediction} state={advanceState} />
+                <PredictionChip value={p.prediction} state={resultState} />
               )}
             </div>
           </li>

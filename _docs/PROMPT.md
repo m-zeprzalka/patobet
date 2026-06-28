@@ -22,9 +22,9 @@ Masz w pamięci skille `web-craft` (`SKILL.md`, `STACK.md`, `DESIGN.md`) — **t
 | **Backend** | Supabase (Auth + Postgres + RLS) |
 | **Auth** | Magic link na email (Supabase Auth) — bez haseł, bez OAuth w MVP |
 | **Dostęp** | Publiczna rejestracja — każdy z mailem może wejść |
-| **Co typujemy** | Grupowa: 1/X/2. Pucharowa: kto awansuje (gospodarz/gość) + dokładny wynik po 90 min |
+| **Co typujemy** | Grupowa: 1/X/2. Pucharowa: 1/X/2 po 90 min + kto awansuje (gospodarz/gość) |
 | **Punktacja faza grupowa** | 1 pkt za trafienie 1/X/2 po 90 min, 0 pkt za pudło |
-| **Punktacja faza pucharowa** | 2 pkt na mecz (zmiana 2026-06-28): 1 pkt za trafienie awansującej drużyny (niezależnie od dogrywki/karnych) + 1 pkt za dokładny wynik po 90 min. Punkty liczone niezależnie |
+| **Punktacja faza pucharowa** | 2 pkt na mecz (2026-06-28): 1 pkt za trafiony 1/X/2 po 90 min (jak grupowa) + 1 pkt za trafiony awans (kto ostatecznie przechodzi dalej, z dogrywką/karnymi). Punkty liczone niezależnie |
 | **Deadline typowania** | Gwizdek startowy meczu (kickoff). Po kickoff typ zablokowany, nawet jeśli nie został złożony |
 | **Widoczność cudzych typów** | Od razu po obstawieniu (znajomi widzą się nawzajem — to część zabawy) |
 | **Edycja typu** | Możliwa do gwizdka. Po kickoff — zablokowane na zawsze |
