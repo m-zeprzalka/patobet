@@ -52,7 +52,7 @@ export function PredictButtons({
     if (isPending) return;
     startTransition(async () => {
       setOptimistic(choice);
-      const result = await submitPrediction(matchId, choice);
+      const result = await submitPrediction({ matchId, prediction: choice });
       if (result.ok) {
         setConfirmed(result.prediction);
         toast.success(

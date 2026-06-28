@@ -7,23 +7,40 @@ import { getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { PredictionChoice } from "@/types/database";
 
+const SCORE = z.number().int().min(0).max(99);
+
 const SCHEMA = z.object({
   matchId: z.string().uuid(),
   prediction: z.enum(["home", "draw", "away"]),
+  homeScorePred: SCORE.nullable().optional(),
+  awayScorePred: SCORE.nullable().optional(),
 });
 
+export interface PredictionInput {
+  matchId: string;
+  prediction: PredictionChoice;
+  // Tylko faza pucharowa: typowany dokładny wynik po 90 min. Oba albo żadne.
+  homeScorePred?: number | null;
+  awayScorePred?: number | null;
+}
+
 export type PredictionResult =
-  | { ok: true; prediction: PredictionChoice }
+  | {
+      ok: true;
+      prediction: PredictionChoice;
+      homeScorePred: number | null;
+      awayScorePred: number | null;
+    }
   | { ok: false; error: string };
 
 export async function submitPrediction(
-  matchId: string,
-  prediction: PredictionChoice,
+  input: PredictionInput,
 ): Promise<PredictionResult> {
-  const parsed = SCHEMA.safeParse({ matchId, prediction });
+  const parsed = SCHEMA.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: "Nieprawidłowe dane typu" };
   }
+  const { matchId, prediction } = parsed.data;
 
   const user = await getSessionUser();
   if (!user) {
@@ -36,7 +53,7 @@ export async function submitPrediction(
   // jeśli kickoff minął, ale chcemy zwrócić czytelny komunikat zamiast generic błędu.
   const { data: match, error: matchErr } = await supabase
     .from("matches")
-    .select("id, kickoff_at, status")
+    .select("id, kickoff_at, status, stage")
     .eq("id", matchId)
     .maybeSingle();
 
@@ -55,20 +72,44 @@ export async function submitPrediction(
     return { ok: false, error: "Tego meczu już nie można typować" };
   }
 
-  const { error } = await supabase
-    .from("predictions")
-    .upsert(
-      {
-        user_id: user.id,
-        match_id: matchId,
-        prediction,
-      },
-      { onConflict: "user_id,match_id" },
-    );
+  let homeScorePred: number | null = null;
+  let awayScorePred: number | null = null;
+
+  if (match.stage !== "group") {
+    // Faza pucharowa: `prediction` = kto awansuje (home/away), remis nie istnieje.
+    if (prediction === "draw") {
+      return { ok: false, error: "W fazie pucharowej wskaż, kto awansuje" };
+    }
+    const h = parsed.data.homeScorePred ?? null;
+    const a = parsed.data.awayScorePred ?? null;
+    if ((h == null) !== (a == null)) {
+      return {
+        ok: false,
+        error: "Podaj cały wynik (oba pola) albo zostaw oba puste",
+      };
+    }
+    homeScorePred = h;
+    awayScorePred = a;
+  }
+  // Faza grupowa: tylko 1/X/2, typ wyniku zostaje NULL.
+
+  const { error } = await supabase.from("predictions").upsert(
+    {
+      user_id: user.id,
+      match_id: matchId,
+      prediction,
+      home_score_pred: homeScorePred,
+      away_score_pred: awayScorePred,
+    },
+    { onConflict: "user_id,match_id" },
+  );
 
   if (error) {
     // RLS może odrzucić jeśli między walidacją a zapisem minął kickoff (race)
-    if (error.code === "42501" || error.message.includes("violates row-level security")) {
+    if (
+      error.code === "42501" ||
+      error.message.includes("violates row-level security")
+    ) {
       return {
         ok: false,
         error: "Mecz właśnie się rozpoczął — typ zablokowany",
@@ -79,5 +120,5 @@ export async function submitPrediction(
 
   revalidatePath(`/match/${matchId}`);
   revalidatePath("/matches");
-  return { ok: true, prediction };
+  return { ok: true, prediction, homeScorePred, awayScorePred };
 }

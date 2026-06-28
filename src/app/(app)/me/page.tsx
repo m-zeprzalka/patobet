@@ -13,10 +13,12 @@ import {
 } from "@/components/ui/card";
 import { requireUserWithProfile } from "@/lib/auth";
 import { formatKickoffDate, formatKickoffTime } from "@/lib/format";
+import { isKnockout } from "@/lib/matches";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import type {
   Database,
+  MatchStage,
   MatchStatus,
   PredictionChoice,
 } from "@/types/database";
@@ -31,12 +33,15 @@ type Team = Database["public"]["Tables"]["teams"]["Row"];
 interface MyPredictionRow {
   id: string;
   prediction: PredictionChoice;
+  home_score_pred: number | null;
+  away_score_pred: number | null;
   points_awarded: number | null;
   submitted_at: string;
   match: {
     id: string;
     kickoff_at: string;
     status: MatchStatus;
+    stage: MatchStage;
     home_score: number | null;
     away_score: number | null;
     home_team: Team;
@@ -52,9 +57,9 @@ export default async function MePage() {
     supabase
       .from("predictions")
       .select(
-        `id, prediction, points_awarded, submitted_at,
+        `id, prediction, home_score_pred, away_score_pred, points_awarded, submitted_at,
          match:match_id (
-           id, kickoff_at, status, home_score, away_score,
+           id, kickoff_at, status, stage, home_score, away_score,
            home_team:home_team_id (id, api_id, name, code, flag_url, group_letter, created_at),
            away_team:away_team_id (id, api_id, name, code, flag_url, group_letter, created_at)
          )`,
@@ -154,6 +159,13 @@ export default async function MePage() {
                       : p.points_awarded > 0
                         ? "correct"
                         : "wrong";
+                  const knockout = isKnockout(p.match.stage);
+                  const advanceCode =
+                    p.prediction === "home"
+                      ? p.match.home_team.code
+                      : p.match.away_team.code;
+                  const hasScorePred =
+                    p.home_score_pred != null && p.away_score_pred != null;
                   return (
                     <li
                       key={p.id}
@@ -215,7 +227,29 @@ export default async function MePage() {
                               : "0"}
                           </span>
                         ) : null}
-                        <PredictionChip value={p.prediction} state={state} />
+                        {knockout ? (
+                          <span className="flex items-center gap-1.5">
+                            {hasScorePred ? (
+                              <span className="font-display text-foreground text-xs font-semibold tabular-nums">
+                                {p.home_score_pred}:{p.away_score_pred}
+                              </span>
+                            ) : null}
+                            <span
+                              className={cn(
+                                "font-display rounded-md border px-2 py-1 text-xs font-bold",
+                                state === "correct"
+                                  ? "border-energy/40 bg-energy text-energy-foreground"
+                                  : state === "wrong"
+                                    ? "border-destructive/40 bg-destructive/15 text-destructive"
+                                    : "border-border bg-card text-foreground",
+                              )}
+                            >
+                              {advanceCode}↑
+                            </span>
+                          </span>
+                        ) : (
+                          <PredictionChip value={p.prediction} state={state} />
+                        )}
                       </div>
                     </li>
                   );

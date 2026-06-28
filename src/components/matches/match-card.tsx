@@ -4,7 +4,12 @@ import { MatchStatusBadge } from "@/components/matches/match-status-badge";
 import { PredictionChip } from "@/components/matches/prediction-chip";
 import { TeamBadge } from "@/components/matches/team-badge";
 import { formatKickoffTime, timeUntilKickoff } from "@/lib/format";
-import { correctChoice, isLocked, type MatchWithDetails } from "@/lib/matches";
+import {
+  correctChoice,
+  isKnockout,
+  isLocked,
+  type MatchWithDetails,
+} from "@/lib/matches";
 import { cn } from "@/lib/utils";
 
 interface MatchCardProps {
@@ -15,6 +20,7 @@ export function MatchCard({ match }: MatchCardProps) {
   const locked = isLocked(match);
   const correct = match.status === "finished" ? correctChoice(match) : null;
   const isFinished = match.status === "finished";
+  const knockout = isKnockout(match.stage);
 
   const mySettled =
     match.myPrediction?.points_awarded != null
@@ -22,6 +28,14 @@ export function MatchCard({ match }: MatchCardProps) {
         ? "correct"
         : "wrong"
       : "default";
+
+  const myAdvanceCode =
+    match.myPrediction?.prediction === "home"
+      ? match.home_team.code
+      : match.away_team.code;
+  const myHasScore =
+    match.myPrediction?.home_score_pred != null &&
+    match.myPrediction?.away_score_pred != null;
 
   return (
     <Link
@@ -97,11 +111,34 @@ export function MatchCard({ match }: MatchCardProps) {
           {match.myPrediction ? (
             <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
               <span className="font-medium">Twój typ:</span>
-              <PredictionChip
-                value={match.myPrediction.prediction}
-                state={mySettled}
-                size="sm"
-              />
+              {knockout ? (
+                <span className="flex items-center gap-1.5">
+                  {myHasScore ? (
+                    <span className="font-display text-foreground text-xs font-semibold tabular-nums">
+                      {match.myPrediction.home_score_pred}:
+                      {match.myPrediction.away_score_pred}
+                    </span>
+                  ) : null}
+                  <span
+                    className={cn(
+                      "font-display rounded border px-1.5 py-0.5 text-[0.7rem] font-bold",
+                      mySettled === "correct"
+                        ? "border-energy/40 bg-energy text-energy-foreground"
+                        : mySettled === "wrong"
+                          ? "border-destructive/40 bg-destructive/15 text-destructive"
+                          : "border-border bg-card text-foreground",
+                    )}
+                  >
+                    {myAdvanceCode}↑
+                  </span>
+                </span>
+              ) : (
+                <PredictionChip
+                  value={match.myPrediction.prediction}
+                  state={mySettled}
+                  size="sm"
+                />
+              )}
               {isFinished && match.myPrediction.points_awarded != null ? (
                 <span
                   className={cn(
@@ -131,7 +168,9 @@ export function MatchCard({ match }: MatchCardProps) {
 
       {isFinished && correct && match.myPrediction == null ? (
         <span className="bg-muted text-muted-foreground absolute -top-2 right-3 rounded-full px-2 py-0.5 text-[0.65rem] font-medium">
-          poprawny: {correct === "home" ? "1" : correct === "draw" ? "X" : "2"}
+          {knockout
+            ? `awans: ${correct === "home" ? match.home_team.code : match.away_team.code}`
+            : `poprawny: ${correct === "home" ? "1" : correct === "draw" ? "X" : "2"}`}
         </span>
       ) : null}
     </Link>
